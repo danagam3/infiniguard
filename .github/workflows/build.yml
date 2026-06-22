@@ -20,6 +20,9 @@ jobs:
         run: npm install
       - name: Add Android platform
         run: npx cap add android
+      - name: Generate app icon
+        continue-on-error: true
+        run: npx --yes @capacitor/assets@3.0.5 generate --android
       - name: Sync web assets
         run: npx cap sync android
       - name: Build debug APK
