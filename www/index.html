@@ -323,7 +323,7 @@ body{font-family:var(--body);background:var(--bg);color:var(--text-hi);overflow:
           <div><b>מילוי ע"י העובד היוצא</b><p>מלא הערות ונושאים פתוחים למשמרת הבאה, ושלח לחדר הבקרה.</p></div>
         </div>
         
-        <div class="ho-toggle" id="issuesToggle" onclick="this.classList.toggle('on')">
+        <div class="field-group"><label>שם העובד היוצא</label><input id="outgoingWorker" placeholder="הקלד שם מלא"></div><div class="field-group"><label>משמרת נכנסת</label><select id="inShift"><option value="בוקר">בוקר · 07:00–15:00</option><option value="צהריים">צהריים · 15:00–23:00</option><option value="לילה">לילה · 23:00–07:00</option></select></div><div class="ho-toggle" id="issuesToggle" onclick="this.classList.toggle('on')">
           <div class="tg-meta"><b>יש אירוע / תקלה פתוחה?</b><span>סמן אם יש משהו שדורש המשך טיפול</span></div>
           <div class="switch"></div>
         </div>
@@ -337,8 +337,8 @@ body{font-family:var(--body);background:var(--bg);color:var(--text-hi);overflow:
           <div><b>אישור ע"י העובד הנכנס</b><p>קרא את סיכום ההעברה, הזן את שמך ואשר את קבלת המשמרת על המכשיר.</p></div>
         </div>
         <div class="summary-card">
-          <div class="sc-row"><span>מעבר משמרת</span><b>בוקר ← צהריים</b></div>
-          <div class="sc-row"><span>עובד יוצא</span><b>דוד כהן</b></div>
+          <div class="sc-row"><span>מעבר משמרת</span><b id="sumShift">—</b></div>
+          <div class="sc-row"><span>עובד יוצא</span><b id="sumOut">—</b></div>
           <div class="sc-row"><span>אירוע פתוח</span><b id="sumIssue">אין</b></div>
           <div class="sc-row"><span>צ'ק ליסטים שיוחלפו</span><b>למשמרת צהריים</b></div>
         </div>
@@ -347,7 +347,7 @@ body{font-family:var(--body);background:var(--bg);color:var(--text-hi);overflow:
 
     </div>
     <div class="submit-bar">
-      <button class="btn-primary" id="hoBtn" onclick="submitHandover()">שלח לחדר הבקרה</button>
+      <button class="btn-primary" id="hoBtn" onclick="handoverNext()">המשך לאישור העובד הנכנס</button>
     </div>
   </section>
 
@@ -415,7 +415,7 @@ function setupDevice(role,loc){window.IG_ROLE=role;window.IG_LOC=loc;try{localSt
 function toggleCI(box){const item=box.closest('.checkitem');if(!item.classList.contains('no-photo')&&!item.querySelector('.photo-done')&&!item.classList.contains('checked')){alert('צילום תמונה חובה לפני סימון הפריט');return;}item.classList.toggle('checked');try{updateFillCount();}catch(e){}}
 function snapPhoto(zone){const d=document.createElement('div');d.className='photo-done';d.innerHTML='<div class="photo-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div><div class="pd-meta"><b>תמונה צורפה</b><span>עכשיו · תוקף שבוע</span></div>';zone.replaceWith(d);}
 
-function openHandover(){hoPhase=1;document.getElementById('phase1').classList.add('active');document.getElementById('phase2').classList.remove('active');document.getElementById('hoBtn').textContent='שלח לחדר הבקרה';document.getElementById('hoSub').textContent='שלב 1 מתוך 2 · מילוי ע"י העובד היוצא';show('handover');}
+function openHandover(){hoPhase=1;var p1=document.getElementById('phase1'),p2=document.getElementById('phase2');if(p1)p1.classList.add('active');if(p2)p2.classList.remove('active');var b=document.getElementById('hoBtn');if(b)b.textContent='המשך לאישור העובד הנכנס';var sub=document.getElementById('hoSub');if(sub)sub.textContent='שלב 1 מתוך 2 · מילוי ע"י העובד היוצא';['outgoingWorker','incomingWorker','hoNotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var it=document.getElementById('issuesToggle');if(it)it.classList.remove('on');show('handover');}
 /* handoverNext replaced by submitHandover */
 
 /* push notification simulation — three types */
@@ -670,6 +670,56 @@ function submitHandover(){
   }catch(err){ igToast('תקלה: '+((err&&err.message)||err),false); }
 }
 function handoverNext(){ if(typeof submitHandover==='function') submitHandover(); }
+
+</script>
+<script>
+function igApplyShift(worker,shift){
+  try{
+    var times={'בוקר':'07:00 – 15:00','צהריים':'15:00 – 23:00','לילה':'23:00 – 07:00'};
+    var aw=document.getElementById('activeWorker'); if(aw) aw.textContent=worker||'—';
+    var sh=document.querySelector('.sb-shift'); if(sh) sh.textContent=shift?('משמרת '+shift):'אין משמרת פעילה';
+    var tm=document.querySelector('.sb-time'); if(tm) tm.textContent=times[shift]||'';
+    var av=document.querySelector('.sb-av'); if(av) av.textContent=worker?worker.trim().split(' ').map(function(w){return w[0]||'';}).slice(0,2).join(''):'—';
+    if(worker) localStorage.setItem('ig_field_shift', JSON.stringify({worker:worker,shift:shift}));
+  }catch(e){}
+}
+function handoverNext(){
+  if(typeof hoPhase==='undefined'){ window.hoPhase=1; }
+  if(hoPhase===1){
+    var oe=document.getElementById('outgoingWorker'); var out=oe?oe.value.trim():'';
+    if(!out){ igToast('הזן את שם העובד היוצא',false); return; }
+    var shift=(document.getElementById('inShift')||{}).value||'';
+    var issue=document.getElementById('issuesToggle').classList.contains('on')?'כן — ראה הערות':'אין';
+    var so=document.getElementById('sumOut'); if(so) so.textContent=out;
+    var ss=document.getElementById('sumShift'); if(ss) ss.textContent='נכנסת: '+shift;
+    var si=document.getElementById('sumIssue'); if(si) si.textContent=issue;
+    document.getElementById('phase1').classList.remove('active');
+    document.getElementById('phase2').classList.add('active');
+    document.getElementById('hoBtn').textContent='מאשר קבלת משמרת';
+    var sub=document.getElementById('hoSub'); if(sub) sub.textContent='שלב 2 מתוך 2 · אישור ע"י העובד הנכנס';
+    var bd=document.querySelector('#handover .body'); if(bd) bd.scrollTop=0;
+    hoPhase=2;
+  } else {
+    var ie=document.getElementById('incomingWorker'); var inName=ie?ie.value.trim():'';
+    if(!inName){ igToast('הזן את שם העובד הנכנס לאישור',false); return; }
+    var oe=document.getElementById('outgoingWorker'); var out=oe?oe.value.trim():'';
+    var shift=(document.getElementById('inShift')||{}).value||'';
+    var ne=document.getElementById('hoNotes'); var notes=ne?ne.value.trim():'';
+    var hasIssue=document.getElementById('issuesToggle').classList.contains('on');
+    var d=new Date(); var p=function(n){return(n<10?'0':'')+n;};
+    var obj={outgoing:out,incoming:inName,shift:shift,notes:notes,hasIssue:hasIssue,role:(window.IG_ROLE||''),station:(window.IG_LOC||''),time:p(d.getHours())+':'+p(d.getMinutes()),date:ovToday(),ts:Date.now()};
+    var finish=function(){ igApplyShift(inName,shift); igToast('המשמרת הוחלפה ונמסרה לחדר הבקרה ✓',true); setTimeout(function(){ show('home'); },1000); };
+    if(window.igDB){ igToast('שולח...'); window.igDB.collection('handovers').add(obj).then(finish).catch(function(e){ igToast('שגיאה: '+((e&&e.message)||e),false); }); }
+    else { finish(); }
+  }
+}
+(function igInitShift(){
+  try{
+    var s=JSON.parse(localStorage.getItem('ig_field_shift')||'null');
+    if(s&&s.worker){ igApplyShift(s.worker,s.shift); }
+    else { igApplyShift('',''); }
+  }catch(e){}
+})();
 
 </script>
 </body>
